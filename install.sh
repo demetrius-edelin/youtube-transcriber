@@ -259,8 +259,8 @@ mkdir -p "$SYMLINK_DIR"
 # Remove old symlink if it exists
 rm -f "$SYMLINK_DIR/yt-transcribe"
 
-# Create new symlink
-ln -s "$INSTALL_DIR/scripts/process_youtube.sh" "$SYMLINK_DIR/yt-transcribe"
+# Create new symlink to the wrapper script
+ln -s "$INSTALL_DIR/yt-transcribe" "$SYMLINK_DIR/yt-transcribe"
 echo "✅ Created 'yt-transcribe' command"
 
 # Check if ~/.local/bin is in PATH

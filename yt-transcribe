@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# YouTube Transcriber wrapper script
+# This script properly locates and executes the main process_youtube.sh script
+
+# Get the directory where this script is located
+# Handle both symlinks and direct execution
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, resolve it relative to the symlink's location
+done
+YT_TRANSCRIBER_DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+
+# Execute the main script with all arguments
+exec "$YT_TRANSCRIBER_DIR/scripts/process_youtube.sh" "$@"
