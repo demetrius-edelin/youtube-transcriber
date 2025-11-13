@@ -1,0 +1,7 @@
+# Python dependencies for YouTube Transcriber
+
+# Video downloading
+yt-dlp>=2024.1.0
+
+# Optional: For better error handling and logging
+requests>=2.31.0

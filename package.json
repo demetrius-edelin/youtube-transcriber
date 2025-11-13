@@ -1,0 +1,20 @@
+{
+  "name": "youtube-transcriber",
+  "version": "1.0.0",
+  "description": "YouTube video transcription and summarization tool",
+  "main": "scripts/cleanup.js",
+  "scripts": {
+    "test": "node scripts/cleanup.js test.txt"
+  },
+  "keywords": [
+    "youtube",
+    "transcription",
+    "whisper",
+    "summarization"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

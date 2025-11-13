@@ -1,0 +1,73 @@
+# Compiled files and build artifacts
+whisper.cpp/
+build/
+*.o
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Model files (large binary files)
+models/*.bin
+models/*.ggml
+models/*.gguf
+*.bin
+*.ggml
+*.gguf
+
+# Downloaded videos and processed files
+*.mp4
+*.mkv
+*.webm
+*.avi
+*.mov
+*.wav
+*.mp3
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+.DS_Store
+
+# Output files (optional - remove if you want to track these)
+*.pdf
+*_cleaned.txt
+*_summary.txt
+
+# API keys and sensitive config
+config/secrets.sh
+.env
+.env.local
+
+# Node modules
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
