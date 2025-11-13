@@ -36,7 +36,7 @@ The tool requires the following software to be installed on your system:
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/yourusername/youtube-transcriber.git
+git clone https://github.com/demetrius-edelin/youtube-transcriber.git
 cd youtube-transcriber
 ```
 
