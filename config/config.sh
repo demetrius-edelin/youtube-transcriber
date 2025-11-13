@@ -6,10 +6,10 @@
 export YT_TRANSCRIBER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Output directory for downloaded and processed videos
-export DEST_DIR="${DEST_DIR:-$HOME/Documents/youtuburi}"
+export DEST_DIR="${DEST_DIR:-$HOME/Documents/youtubes}"
 
 # Obsidian notes directory (optional)
-export OBSIDIAN_DIR="${OBSIDIAN_DIR:-$HOME/Documents/obsidian_notes/Studiu/Youtube}"
+export OBSIDIAN_DIR="${OBSIDIAN_DIR:-$HOME/Documents/obsidian_notes/Youtube_transcripts}"
 
 # Whisper.cpp paths
 export WHISPER_CPP_DIR="${WHISPER_CPP_DIR:-$YT_TRANSCRIBER_DIR/whisper.cpp}"
