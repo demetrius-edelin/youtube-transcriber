@@ -1,10 +1,11 @@
 # YouTube Transcriber
 
-A powerful command-line tool that downloads YouTube videos, transcribes them using Whisper.cpp, generates AI summaries, and creates formatted PDFs and markdown files.
+A powerful command-line tool that processes videos from YouTube URLs or local files, transcribes them using Whisper.cpp, generates AI summaries, and creates formatted PDFs and markdown files.
 
 ## Features
 
 - **Video Download**: Downloads videos from YouTube and other platforms using yt-dlp
+- **Local File Support**: Process video files already on your hard drive
 - **Transcription**: Converts audio to text using OpenAI's Whisper model (via whisper.cpp)
 - **AI Summarization**: Generates concise summaries using OpenAI's API (optional)
 - **Multiple Output Formats**: Creates clean text files, PDFs, and Obsidian-compatible markdown
@@ -134,10 +135,16 @@ Transcribe a YouTube video:
 yt-transcribe https://www.youtube.com/watch?v=VIDEO_ID
 ```
 
+Transcribe a local video file:
+```bash
+yt-transcribe /path/to/video.mp4
+yt-transcribe ~/Downloads/lecture.mkv
+```
+
 ### Command Options
 
 ```bash
-yt-transcribe [OPTIONS] VIDEO_URL
+yt-transcribe [OPTIONS] VIDEO_URL_OR_FILE
 
 Options:
   -d    Delete unnecessary files (keep only cleaned.txt and .pdf)
@@ -148,24 +155,28 @@ Options:
 
 ### Examples
 
-Transcribe with all features:
+**YouTube Videos:**
 ```bash
+# Transcribe with all features
 yt-transcribe https://www.youtube.com/watch?v=dQw4w9WgXcQ
-```
 
-Transcribe without AI summary:
-```bash
+# Transcribe without AI summary
 yt-transcribe -s https://www.youtube.com/watch?v=dQw4w9WgXcQ
-```
 
-Transcribe and clean up intermediate files:
-```bash
+# Transcribe and clean up intermediate files
 yt-transcribe -d https://www.youtube.com/watch?v=dQw4w9WgXcQ
 ```
 
-Skip Obsidian integration:
+**Local Video Files:**
 ```bash
-yt-transcribe -n https://www.youtube.com/watch?v=dQw4w9WgXcQ
+# Transcribe a local MP4 file
+yt-transcribe ~/Videos/meeting-recording.mp4
+
+# Transcribe without saving to Obsidian
+yt-transcribe -n /Users/john/Downloads/lecture.mkv
+
+# Process and clean up, skip summary
+yt-transcribe -d -s ./presentation.webm
 ```
 
 ### Batch Processing

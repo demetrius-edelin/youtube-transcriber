@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# process_youtube.sh - Download and process videos from web URLs
-# Usage: ./process_youtube.sh [OPTIONS] URL
+# process_youtube.sh - Download and process videos from web URLs or local files
+# Usage: ./process_youtube.sh [OPTIONS] URL_OR_FILE
 #   OPTIONS:
 #     -d    Delete unnecessary files, keeping only cleaned.txt and cleaned.pdf
 #     -n    Skip saving results to Obsidian
@@ -56,7 +56,7 @@ while getopts ":dnso" opt; do
       ;;
     \? )
       echo "Invalid option: $OPTARG" 1>&2
-      echo "Usage: $0 [-d] [-n] [-s] [-o] VIDEO_URL"
+      echo "Usage: $0 [-d] [-n] [-s] [-o] VIDEO_URL_OR_FILE"
       echo "  -d    Delete unnecessary files, keeping only cleaned.txt and cleaned.pdf"
       echo "  -n    Skip saving results to Obsidian"
       echo "  -s    Skip AI summarization (transcript only)"
@@ -67,10 +67,16 @@ while getopts ":dnso" opt; do
 done
 shift $((OPTIND -1))
 
-# Check if URL is provided
+# Check if input is provided
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 [-d] [-n] [-s] [-o] VIDEO_URL"
-    echo "Example: $0 https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    echo "Usage: $0 [-d] [-n] [-s] [-o] VIDEO_URL_OR_FILE"
+    echo ""
+    echo "Examples:"
+    echo "  $0 https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    echo "  $0 /path/to/video.mp4"
+    echo "  $0 ~/Downloads/lecture.mkv"
+    echo ""
+    echo "Options:"
     echo "  -d    Delete unnecessary files, keeping only cleaned.txt and cleaned.pdf"
     echo "  -n    Skip saving results to Obsidian"
     echo "  -s    Skip AI summarization (transcript only)"
@@ -78,208 +84,265 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-URL="$1"
-TEMP_DIR=$(mktemp -d)
+INPUT="$1"
 CURRENT_DIR=$(pwd)
+IS_LOCAL_FILE=false
+VIDEO_SOURCE=""
 
-echo "====================================="
-echo "Downloading video from: $URL"
-echo "====================================="
+# Function to process the video (common part for both URL and local file)
+process_video() {
+    local video_file="$1"
+    local source_info="$2"
 
-# Navigate to temp directory to download
-cd "$TEMP_DIR" || exit 1
+    echo "====================================="
+    echo "Processing video with whisper..."
+    echo "====================================="
 
-# Download video using yt-dlp
-# -i flag to ignore errors
-# --restrict-filenames to avoid special characters
-# -o to specify output format with default title
-"$YT_DLP" -i --restrict-filename -f worst "$URL"
+    # Process the video using the whisperit script
+    "$SCRIPT_DIR/whisperit.sh" "$video_file"
 
-# Check if download succeeded
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to download video from $URL"
-    cd "$CURRENT_DIR"
-    rm -rf "$TEMP_DIR"
-    exit 1
-fi
+    # Run the summarize script to generate a summary of the transcript
+    if [ "$SKIP_SUMMARY" = false ] && [ -f "$SCRIPT_DIR/summarize.sh" ]; then
+        # Export FILENAME for the summarize.sh script
+        export FILENAME="$video_file"
 
-# Get the downloaded filename
-# This handles the case where yt-dlp might modify the filename
-FILENAME=$(find . -type f -name "*.mp4" -o -name "*.mkv" -o -name "*.webm" | head -n 1)
+        # Call the summarize script
+        "$SCRIPT_DIR/summarize.sh"
 
-if [ -z "$FILENAME" ]; then
-    echo "Error: Could not find downloaded video file"
-    cd "$CURRENT_DIR"
-    rm -rf "$TEMP_DIR"
-    exit 1
-fi
+        # Get the base filename without extension
+        local base_name="${video_file%.*}"
+        CLEANED_FILE="${base_name}_cleaned.txt"
+        SUMMARY_FILE="${base_name}_summary.txt"
 
-FILENAME=$(basename "$FILENAME")
-echo "Video downloaded as: $FILENAME"
-
-# Get the base filename without extension for folder name
-BASE_FILENAME="${FILENAME%.*}"
-
-# Create a subfolder for this video within the destination directory
-VIDEO_FOLDER="$DEST_DIR/$BASE_FILENAME"
-mkdir -p "$VIDEO_FOLDER"
-
-# Copy the file to the video folder
-cp "$FILENAME" "$VIDEO_FOLDER/"
-
-# Go back to original directory
-cd "$CURRENT_DIR" || exit 1
-
-# Change to the video folder for processing
-cd "$VIDEO_FOLDER" || exit 1
-
-echo "====================================="
-echo "Processing video in folder: $VIDEO_FOLDER"
-echo "====================================="
-
-echo "====================================="
-echo "Processing video with whisper..."
-echo "====================================="
-
-# Process the video using the whisperit script
-"$SCRIPT_DIR/whisperit.sh" "$FILENAME"
-
-# Clean up the temp directory
-rm -rf "$TEMP_DIR"
-
-# Run the summarize script to generate a summary of the transcript
-if [ "$SKIP_SUMMARY" = false ] && [ -f "$SCRIPT_DIR/summarize.sh" ]; then
-    # Export FILENAME for the summarize.sh script
-    export FILENAME
-
-    # Call the summarize script
-    "$SCRIPT_DIR/summarize.sh"
-
-    # Get the base filename without extension
-    CLEANED_FILE="${BASE_FILENAME}_cleaned.txt"
-    SUMMARY_FILE="${BASE_FILENAME}_summary.txt"
-
-    # Check if both files exist
-    if [ -f "$SUMMARY_FILE" ] && [ -f "$CLEANED_FILE" ]; then
-        echo "====================================="
-        echo "Putting summary at the top of transcript file..."
-        echo "====================================="
-
-        # Create a temporary file with URL, summary and transcript
-        {
-            echo "# VIDEO SOURCE"
-            echo "$URL"
-            echo ""
-            echo "# SUMMARY"
-            echo ""
-            cat "$SUMMARY_FILE"
-            echo ""
-            echo "# TRANSCRIPT"
-            echo ""
-            cat "$CLEANED_FILE"
-        } > "${CLEANED_FILE}.tmp"
-
-        # Replace the original cleaned file
-        mv "${CLEANED_FILE}.tmp" "$CLEANED_FILE"
-
-        # Generate PDF from the combined file
-        echo "====================================="
-        echo "Creating PDF version..."
-        echo "====================================="
-        "$SCRIPT_DIR/fix_pdf.sh" "$CLEANED_FILE"
-
-        # Open PDF in Firefox if requested
-        open_pdf_in_firefox "$BASE_FILENAME"
-
-        # Create Obsidian markdown file (if not skipped)
-        if [ "$SKIP_OBSIDIAN" = false ]; then
+        # Check if both files exist
+        if [ -f "$SUMMARY_FILE" ] && [ -f "$CLEANED_FILE" ]; then
             echo "====================================="
-            echo "Creating Obsidian markdown file..."
+            echo "Putting summary at the top of transcript file..."
             echo "====================================="
 
-            # Ensure Obsidian directory exists
-            mkdir -p "$OBSIDIAN_DIR"
+            # Create a temporary file with source info, summary and transcript
+            {
+                echo "# VIDEO SOURCE"
+                echo "$source_info"
+                echo ""
+                echo "# SUMMARY"
+                echo ""
+                cat "$SUMMARY_FILE"
+                echo ""
+                echo "# TRANSCRIPT"
+                echo ""
+                cat "$CLEANED_FILE"
+            } > "${CLEANED_FILE}.tmp"
 
-            # Create markdown file with the same content
-            OBSIDIAN_FILE="$OBSIDIAN_DIR/${BASE_FILENAME}.md"
-            cp "$CLEANED_FILE" "$OBSIDIAN_FILE"
+            # Replace the original cleaned file
+            mv "${CLEANED_FILE}.tmp" "$CLEANED_FILE"
 
-            echo "Obsidian file created at: $OBSIDIAN_FILE"
+            # Generate PDF from the combined file
+            echo "====================================="
+            echo "Creating PDF version..."
+            echo "====================================="
+            "$SCRIPT_DIR/fix_pdf.sh" "$CLEANED_FILE"
+
+            # Open PDF in Firefox if requested
+            open_pdf_in_firefox "$base_name"
+
+            # Create Obsidian markdown file (if not skipped)
+            if [ "$SKIP_OBSIDIAN" = false ]; then
+                echo "====================================="
+                echo "Creating Obsidian markdown file..."
+                echo "====================================="
+
+                # Ensure Obsidian directory exists
+                mkdir -p "$OBSIDIAN_DIR"
+
+                # Create markdown file with the same content
+                OBSIDIAN_FILE="$OBSIDIAN_DIR/${base_name}.md"
+                cp "$CLEANED_FILE" "$OBSIDIAN_FILE"
+
+                echo "Obsidian file created at: $OBSIDIAN_FILE"
+            else
+                echo "====================================="
+                echo "Skipping Obsidian file creation (as requested)"
+                echo "====================================="
+            fi
         else
             echo "====================================="
-            echo "Skipping Obsidian file creation (as requested)"
+            echo "Warning: Could not find summary or transcript files"
+            if [ ! -f "$CLEANED_FILE" ]; then
+                echo "Missing: $CLEANED_FILE"
+            fi
+            if [ ! -f "$SUMMARY_FILE" ]; then
+                echo "Missing: $SUMMARY_FILE"
+            fi
+            echo "====================================="
+        fi
+    elif [ "$SKIP_SUMMARY" = true ]; then
+        echo "====================================="
+        echo "Skipping AI summarization (as requested)"
+        echo "====================================="
+
+        # Still process the transcript file if it exists
+        local base_name="${video_file%.*}"
+        CLEANED_FILE="${base_name}_cleaned.txt"
+
+        if [ -f "$CLEANED_FILE" ]; then
+            # Create a file with source info and transcript only
+            {
+                echo "# VIDEO SOURCE"
+                echo "$source_info"
+                echo ""
+                echo "# TRANSCRIPT"
+                echo ""
+                cat "$CLEANED_FILE"
+            } > "${CLEANED_FILE}.tmp"
+
+            # Replace the original cleaned file
+            mv "${CLEANED_FILE}.tmp" "$CLEANED_FILE"
+
+            # Generate PDF from the combined file
+            echo "====================================="
+            echo "Creating PDF version..."
+            echo "====================================="
+            "$SCRIPT_DIR/fix_pdf.sh" "$CLEANED_FILE"
+
+            # Open PDF in Firefox if requested
+            open_pdf_in_firefox "$base_name"
+
+            # Create Obsidian markdown file (if not skipped)
+            if [ "$SKIP_OBSIDIAN" = false ]; then
+                echo "====================================="
+                echo "Creating Obsidian markdown file..."
+                echo "====================================="
+
+                # Ensure Obsidian directory exists
+                mkdir -p "$OBSIDIAN_DIR"
+
+                # Create markdown file with the same content
+                OBSIDIAN_FILE="$OBSIDIAN_DIR/${base_name}.md"
+                cp "$CLEANED_FILE" "$OBSIDIAN_FILE"
+
+                echo "Obsidian file created at: $OBSIDIAN_FILE"
+            else
+                echo "====================================="
+                echo "Skipping Obsidian file creation (as requested)"
+                echo "====================================="
+            fi
+        else
+            echo "====================================="
+            echo "Warning: Could not find transcript file: $CLEANED_FILE"
             echo "====================================="
         fi
     else
         echo "====================================="
-        echo "Warning: Could not find summary or transcript files"
-        if [ ! -f "$CLEANED_FILE" ]; then
-            echo "Missing: $CLEANED_FILE"
-        fi
-        if [ ! -f "$SUMMARY_FILE" ]; then
-            echo "Missing: $SUMMARY_FILE"
-        fi
+        echo "Warning: summarize.sh not found, skipping summary generation"
         echo "====================================="
     fi
-elif [ "$SKIP_SUMMARY" = true ]; then
+}
+
+# Check if input is a local file or URL
+if [ -f "$INPUT" ]; then
+    # It's a local file
+    IS_LOCAL_FILE=true
+    VIDEO_SOURCE="Local file: $(realpath "$INPUT")"
+
     echo "====================================="
-    echo "Skipping AI summarization (as requested)"
+    echo "Processing local video file: $INPUT"
     echo "====================================="
 
-    # Still process the transcript file if it exists
-    CLEANED_FILE="${BASE_FILENAME}_cleaned.txt"
+    # Get the filename and base name
+    FILENAME=$(basename "$INPUT")
+    BASE_FILENAME="${FILENAME%.*}"
 
-    if [ -f "$CLEANED_FILE" ]; then
-        # Create a file with URL and transcript only
-        {
-            echo "# VIDEO SOURCE"
-            echo "$URL"
-            echo ""
-            echo "# TRANSCRIPT"
-            echo ""
-            cat "$CLEANED_FILE"
-        } > "${CLEANED_FILE}.tmp"
+    # Create a subfolder for this video within the destination directory
+    VIDEO_FOLDER="$DEST_DIR/$BASE_FILENAME"
+    mkdir -p "$VIDEO_FOLDER"
 
-        # Replace the original cleaned file
-        mv "${CLEANED_FILE}.tmp" "$CLEANED_FILE"
+    # Copy the file to the video folder
+    echo "Copying video to processing folder..."
+    cp "$INPUT" "$VIDEO_FOLDER/"
 
-        # Generate PDF from the combined file
-        echo "====================================="
-        echo "Creating PDF version..."
-        echo "====================================="
-        "$SCRIPT_DIR/fix_pdf.sh" "$CLEANED_FILE"
+    # Change to the video folder for processing
+    cd "$VIDEO_FOLDER" || exit 1
 
-        # Open PDF in Firefox if requested
-        open_pdf_in_firefox "$BASE_FILENAME"
+    echo "====================================="
+    echo "Processing video in folder: $VIDEO_FOLDER"
+    echo "====================================="
 
-        # Create Obsidian markdown file (if not skipped)
-        if [ "$SKIP_OBSIDIAN" = false ]; then
-            echo "====================================="
-            echo "Creating Obsidian markdown file..."
-            echo "====================================="
+    # Process the video
+    process_video "$FILENAME" "$VIDEO_SOURCE"
 
-            # Ensure Obsidian directory exists
-            mkdir -p "$OBSIDIAN_DIR"
+elif [[ "$INPUT" =~ ^https?:// ]]; then
+    # It's a URL
+    VIDEO_SOURCE="$INPUT"
+    TEMP_DIR=$(mktemp -d)
 
-            # Create markdown file with the same content
-            OBSIDIAN_FILE="$OBSIDIAN_DIR/${BASE_FILENAME}.md"
-            cp "$CLEANED_FILE" "$OBSIDIAN_FILE"
+    echo "====================================="
+    echo "Downloading video from: $INPUT"
+    echo "====================================="
 
-            echo "Obsidian file created at: $OBSIDIAN_FILE"
-        else
-            echo "====================================="
-            echo "Skipping Obsidian file creation (as requested)"
-            echo "====================================="
-        fi
-    else
-        echo "====================================="
-        echo "Warning: Could not find transcript file: $CLEANED_FILE"
-        echo "====================================="
+    # Navigate to temp directory to download
+    cd "$TEMP_DIR" || exit 1
+
+    # Download video using yt-dlp
+    # -i flag to ignore errors
+    # --restrict-filenames to avoid special characters
+    # -f worst to get smallest file size for faster processing
+    "$YT_DLP" -i --restrict-filename -f worst "$INPUT"
+
+    # Check if download succeeded
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to download video from $INPUT"
+        cd "$CURRENT_DIR"
+        rm -rf "$TEMP_DIR"
+        exit 1
     fi
+
+    # Get the downloaded filename
+    # This handles the case where yt-dlp might modify the filename
+    FILENAME=$(find . -type f \( -name "*.mp4" -o -name "*.mkv" -o -name "*.webm" -o -name "*.avi" -o -name "*.mov" \) | head -n 1)
+
+    if [ -z "$FILENAME" ]; then
+        echo "Error: Could not find downloaded video file"
+        cd "$CURRENT_DIR"
+        rm -rf "$TEMP_DIR"
+        exit 1
+    fi
+
+    FILENAME=$(basename "$FILENAME")
+    echo "Video downloaded as: $FILENAME"
+
+    # Get the base filename without extension for folder name
+    BASE_FILENAME="${FILENAME%.*}"
+
+    # Create a subfolder for this video within the destination directory
+    VIDEO_FOLDER="$DEST_DIR/$BASE_FILENAME"
+    mkdir -p "$VIDEO_FOLDER"
+
+    # Copy the file to the video folder
+    cp "$FILENAME" "$VIDEO_FOLDER/"
+
+    # Go back to original directory
+    cd "$CURRENT_DIR" || exit 1
+
+    # Change to the video folder for processing
+    cd "$VIDEO_FOLDER" || exit 1
+
+    echo "====================================="
+    echo "Processing video in folder: $VIDEO_FOLDER"
+    echo "====================================="
+
+    # Process the video
+    process_video "$FILENAME" "$VIDEO_SOURCE"
+
+    # Clean up the temp directory
+    rm -rf "$TEMP_DIR"
 else
-    echo "====================================="
-    echo "Warning: summarize.sh not found, skipping summary generation"
-    echo "====================================="
+    echo "Error: '$INPUT' is neither a valid URL nor an existing file"
+    echo ""
+    echo "Please provide either:"
+    echo "  - A YouTube/video URL (starting with http:// or https://)"
+    echo "  - A path to a local video file"
+    exit 1
 fi
 
 # Go back to the original directory
