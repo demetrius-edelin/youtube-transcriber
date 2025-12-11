@@ -24,7 +24,7 @@ export FFMPEG="${FFMPEG:-ffmpeg}"
 
 # OpenAI configuration for summarization (optional)
 # export OPENAI_API_KEY="your-api-key-here"
-export OPENAI_MODEL="${OPENAI_MODEL:-gpt-4.1-mini-2025-04-14}"
+export OPENAI_MODEL="${OPENAI_MODEL:-gpt-5-mini-2025-08-07}"
 
 # Python executable
 export PYTHON="${PYTHON:-python3}"

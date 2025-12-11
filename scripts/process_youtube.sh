@@ -299,7 +299,8 @@ elif [[ "$INPUT" =~ ^https?:// ]]; then
 
     # Get the downloaded filename
     # This handles the case where yt-dlp might modify the filename
-    FILENAME=$(find . -type f \( -name "*.mp4" -o -name "*.mkv" -o -name "*.webm" -o -name "*.avi" -o -name "*.mov" \) | head -n 1)
+    # yt-dlp may output audio-only files (e.g., .m4a) when using the worst/smallest format
+    FILENAME=$(find . -type f \( -name "*.mp4" -o -name "*.mkv" -o -name "*.webm" -o -name "*.avi" -o -name "*.mov" -o -name "*.m4a" -o -name "*.mp3" \) | head -n 1)
 
     if [ -z "$FILENAME" ]; then
         echo "Error: Could not find downloaded video file"
